@@ -1,8 +1,14 @@
 from fpdf import FPDF
 from datetime import datetime
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 
-GEMINI_API_KEY=""
+current_dir = Path(__file__).resolve().parent
+env_path = current_dir.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+GEMINI_API_KEY=os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL="gemini-3.5-flash-lite"
 NAME = "Ralfazza Rajariandhana"
 DATE = datetime.now().strftime("%B %d, %Y")

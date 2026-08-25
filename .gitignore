@@ -1,1 +1,14 @@
+.env
+**/.DS_Store
+
 cover_letter/cover_letter_builds
+cover_letter/prompts
+cover_letter/response
+cover_letter/job_description.md
+cover_letter/paragraph_reference.md
+
+resume/resume_builds
+resume/preset.json
+resume/resume.json
+
+ignores/
