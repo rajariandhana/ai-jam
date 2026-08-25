@@ -1,0 +1,42 @@
+{
+  "profile": {
+    "name": "",
+		"website": "",
+    "email": "",
+		"linkedin": "",
+		"github": ""
+  },
+	"education": [
+    {
+      "university": "",
+      "location": "",
+      "degree": "",
+			"gpa": "",
+      "date": "",
+      "coursework": []
+    }
+  ],
+  "experience": [
+    {
+      "company": "",
+      "position": "",
+      "date": "",
+      "location": "",
+      "description": []
+    }
+  ],
+  "projects": [
+    {
+      "name": "",
+      "stack": [],
+      "date": "",
+      "description": []
+    }
+  ],
+  "skills": [
+    {
+      "category": "",
+      "description": ""
+    }
+  ]
+}
