@@ -6,6 +6,7 @@
 		"linkedin": "",
 		"github": ""
   },
+  "summary": "",
 	"education": [
     {
       "university": "",
@@ -38,5 +39,12 @@
       "category": "",
       "description": ""
     }
+  ],
+  "sections": [
+    { "key": "summary", "enabled": true },
+    { "key": "education", "enabled": true },
+    { "key": "projects", "enabled": true },
+    { "key": "experience", "enabled": true },
+    { "key": "skills", "enabled": true }
   ]
 }

@@ -7,4 +7,4 @@ Below I provide:
 4. Several paragraphs I've written that could be used/referenced for.
 5. Request: Optional prompt that if given must be followed.
 
-I want you to write me the body text for a cover letter according to my resume tailored with the job description. The body text could consist of 2-4 paragraphs. Only return me the body text and nothing else. Avoid using em dash, colons, and other common AI writing styles. You must mention my visa eligibility.
+I want you to write me the body text for a cover letter according to my resume tailored with the job description. The body text could consist of 2-4 paragraphs. Only return me the body text and nothing else. Avoid using em dash, colons, and other common AI writing styles. Mention why I am interested in the role. Mention how my experiences and learning capabilities could contribute. You must mention my visa eligibility.
