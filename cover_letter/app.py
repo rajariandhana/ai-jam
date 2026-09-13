@@ -89,8 +89,10 @@ async def generate_prompt_endpoint(job: JobRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# Plain `def` so the Claude subprocess runs in the threadpool and parallel
+# generations don't block the API.
 @api_router.post("/generate")
-async def generate_endpoint(job: JobRequest):
+def generate_endpoint(job: JobRequest):
     company = (job.company or "").strip()
     position = (job.position or "").strip()
     job_description = (job.job_description or "").strip()

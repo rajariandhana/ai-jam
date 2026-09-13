@@ -1,17 +1,22 @@
 from fpdf import FPDF
 from datetime import datetime
+import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
-from google import genai
 
 CURRENT_DIR = Path(__file__).resolve().parent
 ENV_PATH = CURRENT_DIR.parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = "gemini-3.5-flash-lite"
+# Letters are written by the Claude Code CLI on this machine, so they run on the
+# logged-in Claude subscription rather than an API key.
+CLAUDE_MODEL = "opus"
+CLAUDE_TIMEOUT = 300
 NAME = "Ralfazza Rajariandhana"
 
 PROMPT_HEADER_PATH = CURRENT_DIR / "prompt_header.md"
@@ -136,24 +141,75 @@ def generate_pdf_from_texts(header: str, prompt_response: str, footer: str, file
     return _build_pdf(pdf_content, pdf_filename)
 
 
-def generate_prompt(company: str, position: str, job_description: str, request_note: str = "") -> str:
-    if not company:
-        raise ValueError("Company name is required")
-    if not job_description:
-        raise ValueError("Job description is required")
+def _find_claude():
+    found = shutil.which("claude")
+    if found:
+        return found
 
-    # Make sure every folder we'll need later actually exists.
-    _ensure_folders()
+    # The backend may be started with a PATH that misses the default install.
+    fallback = Path.home() / ".local" / "bin" / "claude"
+    if fallback.exists():
+        return str(fallback)
 
-    prompt_header = _read(PROMPT_HEADER_PATH)
+    raise RuntimeError(
+        "Claude Code CLI not found. Install it and run `claude auth login`."
+    )
+
+
+def _ask_claude(system_prompt: str, prompt: str) -> str:
+    """One stateless Claude call. Nothing from other runs can reach it: it runs
+    in a throwaway directory with no tools, MCP servers, settings, memory or
+    saved session, so the prompt is the only context it has."""
+    command = [
+        _find_claude(),
+        "-p",
+        "--no-session-persistence",
+        "--tools", "",
+        "--strict-mcp-config",
+        "--setting-sources", "",
+        "--system-prompt", system_prompt,
+        "--model", CLAUDE_MODEL,
+        "--output-format", "json",
+    ]
+    env = {**os.environ, "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+
+    with tempfile.TemporaryDirectory(prefix="ai-jam-cover-") as workdir:
+        try:
+            completed = subprocess.run(
+                command,
+                input=prompt,
+                capture_output=True,
+                text=True,
+                timeout=CLAUDE_TIMEOUT,
+                cwd=workdir,
+                env=env,
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(f"Claude did not answer within {CLAUDE_TIMEOUT} seconds")
+
+    try:
+        output = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        detail = (completed.stderr or completed.stdout).strip()
+        raise RuntimeError(f"Claude failed: {detail or 'no output'}")
+
+    result = (output.get("result") or "").strip()
+    if output.get("is_error") or completed.returncode != 0:
+        raise RuntimeError(f"Claude failed: {result or completed.stderr.strip()}")
+    if not result:
+        raise RuntimeError("Claude returned an empty letter")
+
+    return result
+
+
+def _prompt_body(job_description: str, request_note: str) -> str:
+    """Everything the model needs besides the instructions in prompt_header.md."""
     resume = _read(RESUME_PATH)
     paragraph_reference = _read(PARAGRAPH_REFERENCE_PATH)
     header = _read(HEADER_PATH)
     footer = _read(FOOTER_PATH)
 
-    prompt = f"""{prompt_header}
-
-1. My full resume in JSON
+    return f"""1. My full resume in JSON
 ```
 {resume}
 ```
@@ -183,7 +239,22 @@ Footer
 ```
 {request_note}
 ```"""
-    return prompt
+
+
+def generate_prompt(company: str, position: str, job_description: str, request_note: str = "") -> str:
+    if not company:
+        raise ValueError("Company name is required")
+    if not job_description:
+        raise ValueError("Job description is required")
+
+    # Make sure every folder we'll need later actually exists.
+    _ensure_folders()
+
+    prompt_header = _read(PROMPT_HEADER_PATH)
+    body = _prompt_body(job_description, request_note)
+    return f"""{prompt_header}
+
+{body}"""
 
 
 def generate_cover_letter(company: str, position: str, job_description: str, request_note: str = "") -> str:
@@ -200,9 +271,10 @@ def generate_cover_letter(company: str, position: str, job_description: str, req
     with open(prompt_filepath, "w", encoding="utf-8") as f:
         f.write(prompt)
 
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-    prompt_response = response.text
+    prompt_response = _ask_claude(
+        _read(PROMPT_HEADER_PATH),
+        _prompt_body(job_description, request_note),
+    )
 
     response_path = os.path.join(PROMPTS_RESPONSE_FOLDER_PATH, filename)
     with open(response_path, "w", encoding="utf-8") as f:

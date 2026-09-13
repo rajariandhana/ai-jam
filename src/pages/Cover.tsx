@@ -74,7 +74,8 @@ function Cover() {
     set_is_generating(true);
 
     try {
-      await instance.post("/generate", payload());
+      // Claude can take a few minutes; match the backend's own timeout.
+      await instance.post("/generate", payload(), { timeout: 300 * 1000 });
       toast.success("Cover letter generated");
       set_company("");
       set_position(DEFAULT_POSITION);
@@ -92,7 +93,7 @@ function Cover() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Cover Letter</h1>
         <p className="text-sm text-muted">
-          Describe the role, then either let the model write it or copy the
+          Describe the role, then either let Claude write it or copy the
           prompt out and paste the reply back.
         </p>
       </div>

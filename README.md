@@ -100,6 +100,23 @@ that appears while the field has focus. Markup is stored in `resume.json` as
 `**bold**`, `*italic*` and `__underline__`, and the LaTeX builder turns it into
 `\textbf`, `\textit` and `\uline`.
 
+## Cover letter generation
+
+Auto process on `/cover` writes the letter body with Claude through the Claude
+Code CLI, so it runs on your Claude subscription with no API key. The CLI has to
+be installed and logged in on the machine running the backend:
+
+```
+claude auth login
+```
+
+Every letter is a separate, stateless call. It runs in a throwaway directory
+with no tools, MCP servers, settings, memory or saved session, so Claude sees
+only the prompt: `resume.json`, the job description, the templates, your
+reference paragraphs and the request note. One letter cannot influence another,
+and several can be generated at once. The model and timeout are `CLAUDE_MODEL`
+and `CLAUDE_TIMEOUT` in `cover_letter/generate.py`.
+
 ## API
 
 | Method | Path | Purpose |
