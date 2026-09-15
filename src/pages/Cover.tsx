@@ -12,6 +12,7 @@ import { Sparkles, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
+import CoverNav from "../components/CoverNav";
 import { Field } from "../components/ui/Field";
 import instance, { error_message } from "../lib/api";
 
@@ -50,24 +51,24 @@ function Cover() {
     request_note,
   });
 
-  async function generate_prompt() {
+  /** Save the job details as a letter and open it in the builder. */
+  async function start_letter() {
     if (!is_valid) return;
 
     set_is_prompting(true);
 
     try {
-      const response = await instance.post("/generate-prompt", payload());
+      const response = await instance.post("/cover/letters", payload());
 
-      navigate("/cover/edit", {
-        state: { ...payload(), prompt: response.data.prompt },
-      });
+      navigate(`/cover/builder/${response.data.letter.id}`);
     } catch (caught) {
-      toast.danger(error_message(caught, "Could not generate the prompt."));
+      toast.danger(error_message(caught, "Could not start the letter."));
     } finally {
       set_is_prompting(false);
     }
   }
 
+  /** Let Claude write the body straight away, then open what it wrote. */
   async function generate() {
     if (!is_valid) return;
 
@@ -75,12 +76,12 @@ function Cover() {
 
     try {
       // Claude can take a few minutes; match the backend's own timeout.
-      await instance.post("/generate", payload(), { timeout: 300 * 1000 });
+      const response = await instance.post("/generate", payload(), {
+        timeout: 300 * 1000,
+      });
+
       toast.success("Cover letter generated");
-      set_company("");
-      set_position(DEFAULT_POSITION);
-      set_description("");
-      set_request_note("");
+      navigate(`/cover/builder/${response.data.id}`);
     } catch (caught) {
       toast.danger(error_message(caught, "Could not generate the letter."));
     } finally {
@@ -93,10 +94,12 @@ function Cover() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Cover Letter</h1>
         <p className="text-sm text-muted">
-          Describe the role, then either let Claude write it or copy the
-          prompt out and paste the reply back.
+          Describe the role, then either let Claude write it or build the
+          prompt and paste a reply back in the builder.
         </p>
       </div>
+
+      <CoverNav />
 
       <Card>
         <Card.Content className="flex flex-col gap-4 py-4">
@@ -163,7 +166,7 @@ function Cover() {
               className="flex-1"
               isPending={is_prompting}
               isDisabled={!is_valid}
-              onClick={generate_prompt}
+              onClick={start_letter}
             >
               {({ isPending }) => (
                 <>
