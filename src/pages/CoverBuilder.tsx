@@ -23,7 +23,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
-import CoverNav from "../components/CoverNav";
+import CoverHeader from "../components/CoverHeader";
 import { CopyButton } from "../components/ui/CopyButton";
 import instance, { error_message } from "../lib/api";
 import {
@@ -39,6 +39,9 @@ import type { CoverTemplate, Letter, LetterSummary } from "../types/cover";
 
 /** Claude can take a few minutes; match the backend's own timeout. */
 const GENERATE_TIMEOUT = 300 * 1000;
+
+/** The column the list view's bar and rows share, so the two line up. */
+const LIST_WIDTH = "mx-auto w-full max-w-4xl";
 
 function CoverBuilder() {
   const { letter_id } = useParams();
@@ -80,87 +83,89 @@ function LetterList() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Builder</h1>
+    <div className="flex flex-col gap-4 pb-4">
+      <CoverHeader
+        title="Builder"
+        width={LIST_WIDTH}
+        actions={
+          <Button onClick={() => navigate("/cover")}>
+            <FilePlus2 className="size-4" />
+            New letter
+          </Button>
+        }
+      />
 
-        <Button onClick={() => navigate("/cover")}>
-          <FilePlus2 className="size-4" />
-          New letter
-        </Button>
-      </div>
+      <div className={`flex flex-col gap-4 ${LIST_WIDTH}`}>
+        <p className="text-sm text-muted">
+          Every letter is saved as JSON, so you can reopen one, rewrite any
+          paragraph and build the PDF again.
+        </p>
 
-      <CoverNav />
+        <TemplateCard />
 
-      <p className="text-sm text-muted">
-        Every letter is saved as JSON, so you can reopen one, rewrite any
-        paragraph and build the PDF again.
-      </p>
-
-      <TemplateCard />
-
-      {is_loading && (
-        <div className="flex h-32 items-center justify-center gap-2 text-muted">
-          <Spinner size="sm" />
-          Loading letters...
-        </div>
-      )}
-
-      {load_error && (
-        <Card>
-          <Card.Content className="py-6 text-sm text-danger">
-            {load_error}
-          </Card.Content>
-        </Card>
-      )}
-
-      {!is_loading && !load_error && letters.length === 0 && (
-        <Card>
-          <Card.Content className="py-8 text-center text-sm text-muted">
-            No letters yet. Fill in the job details on the New letter page to
-            start one.
-          </Card.Content>
-        </Card>
-      )}
-
-      <div className="flex flex-col gap-2">
-        {letters.map((letter) => (
-          <div
-            key={letter.id}
-            className="flex items-center gap-2 rounded-lg border border-border bg-surface p-3"
-          >
-            <button
-              type="button"
-              className="flex flex-1 flex-col items-start overflow-hidden text-left"
-              onClick={() => navigate(`/cover/builder/${letter.id}`)}
-            >
-              <span className="truncate text-sm font-medium">
-                {letter_title(letter)}
-              </span>
-              <span className="truncate text-xs text-muted">
-                {[letter.position, format_time(letter.updated_at)]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-            </button>
-
-            {!letter.has_body && (
-              <span className="shrink-0 rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
-                No body yet
-              </span>
-            )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              isIconOnly
-              aria-label={`Delete the ${letter_title(letter)} letter`}
-              onClick={() => remove(letter.id)}
-            >
-              <Trash2 className="size-4" />
-            </Button>
+        {is_loading && (
+          <div className="flex h-32 items-center justify-center gap-2 text-muted">
+            <Spinner size="sm" />
+            Loading letters...
           </div>
-        ))}
+        )}
+
+        {load_error && (
+          <Card>
+            <Card.Content className="py-6 text-sm text-danger">
+              {load_error}
+            </Card.Content>
+          </Card>
+        )}
+
+        {!is_loading && !load_error && letters.length === 0 && (
+          <Card>
+            <Card.Content className="py-8 text-center text-sm text-muted">
+              No letters yet. Fill in the job details on the New letter page to
+              start one.
+            </Card.Content>
+          </Card>
+        )}
+
+        <div className="flex flex-col gap-2">
+          {letters.map((letter) => (
+            <div
+              key={letter.id}
+              className="flex items-center gap-2 rounded-lg border border-border bg-surface p-3"
+            >
+              <button
+                type="button"
+                className="flex flex-1 flex-col items-start overflow-hidden text-left"
+                onClick={() => navigate(`/cover/builder/${letter.id}`)}
+              >
+                <span className="truncate text-sm font-medium">
+                  {letter_title(letter)}
+                </span>
+                <span className="truncate text-xs text-muted">
+                  {[letter.position, format_time(letter.updated_at)]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </button>
+
+              {!letter.has_body && (
+                <span className="shrink-0 rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
+                  No body yet
+                </span>
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                isIconOnly
+                aria-label={`Delete the ${letter_title(letter)} letter`}
+                onClick={() => remove(letter.id)}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -457,9 +462,13 @@ function LetterEditor({ letter_id }: { letter_id: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-4 pb-4">
+      <CoverHeader
+        title={letter_title(letter)}
+        subtitle={[letter.position, format_time(letter.updated_at)]
+          .filter(Boolean)
+          .join(" · ")}
+        leading={
           <Button
             variant="ghost"
             size="sm"
@@ -469,67 +478,56 @@ function LetterEditor({ letter_id }: { letter_id: string }) {
           >
             <ArrowLeft className="size-4" />
           </Button>
-
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {letter_title(letter)}
-            </h1>
-            <p className="text-sm text-muted">
-              {[letter.position, format_time(letter.updated_at)]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-          </div>
-
-          {is_dirty && (
+        }
+        badge={
+          is_dirty && (
             <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
               Unsaved changes
             </span>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="ghost"
-            isDisabled={!is_dirty}
-            onClick={() => set_letter(saved)}
-          >
-            <RotateCcw className="size-4" />
-            Revert
-          </Button>
-          <Button
-            variant="ghost"
-            isPending={is_building}
-            isDisabled={letter.body.length === 0}
-            onClick={build_pdf}
-          >
-            {({ isPending }) => (
-              <>
-                {isPending ? (
-                  <Spinner color="current" size="sm" />
-                ) : (
-                  <FileDown className="size-4" />
-                )}
-                Build PDF
-              </>
-            )}
-          </Button>
-          <Button isPending={is_saving} isDisabled={!is_dirty} onClick={save}>
-            {({ isPending }) => (
-              <>
-                {isPending ? (
-                  <Spinner color="current" size="sm" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                Save
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <CoverNav />
+          )
+        }
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={!is_dirty}
+              onClick={() => set_letter(saved)}
+            >
+              <RotateCcw className="size-4" />
+              Revert
+            </Button>
+            <Button
+              variant="ghost"
+              isPending={is_building}
+              isDisabled={letter.body.length === 0}
+              onClick={build_pdf}
+            >
+              {({ isPending }) => (
+                <>
+                  {isPending ? (
+                    <Spinner color="current" size="sm" />
+                  ) : (
+                    <FileDown className="size-4" />
+                  )}
+                  Build PDF
+                </>
+              )}
+            </Button>
+            <Button isPending={is_saving} isDisabled={!is_dirty} onClick={save}>
+              {({ isPending }) => (
+                <>
+                  {isPending ? (
+                    <Spinner color="current" size="sm" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  Save
+                </>
+              )}
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="flex flex-col gap-4">

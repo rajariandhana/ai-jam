@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import CoverNav from "../components/CoverNav";
+import CoverHeader from "../components/CoverHeader";
 import instance, { error_message } from "../lib/api";
 import {
   EMPTY_PROMPT_HEADER,
@@ -113,42 +113,44 @@ function PromptHeaderPage() {
   const missing = missing_inputs(header.inputs);
 
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Prompt header</h1>
-          {is_dirty && (
+    // --cover-bar is the sticky bar's height: py-3 plus a 36px title row, a
+    // 12px gap and a 32px nav row, matching the one on /resume. The preview
+    // uses it so it never slides under the bar.
+    <div className="flex flex-col gap-4 pb-4 [--cover-bar:6.75rem]">
+      <CoverHeader
+        title="Prompt header"
+        badge={
+          is_dirty && (
             <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
               Unsaved changes
             </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            isDisabled={!is_dirty}
-            onClick={() => set_header(saved)}
-          >
-            <RotateCcw className="size-4" />
-            Revert
-          </Button>
-          <Button isPending={is_saving} isDisabled={!is_dirty} onClick={save}>
-            {({ isPending }) => (
-              <>
-                {isPending ? (
-                  <Spinner color="current" size="sm" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                Save
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <CoverNav />
+          )
+        }
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              isDisabled={!is_dirty}
+              onClick={() => set_header(saved)}
+            >
+              <RotateCcw className="size-4" />
+              Revert
+            </Button>
+            <Button isPending={is_saving} isDisabled={!is_dirty} onClick={save}>
+              {({ isPending }) => (
+                <>
+                  {isPending ? (
+                    <Spinner color="current" size="sm" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  Save
+                </>
+              )}
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="flex flex-col gap-4">
@@ -363,7 +365,7 @@ function PromptHeaderPage() {
           </Card>
         </div>
 
-        <Card className="xl:sticky xl:top-18 xl:self-start">
+        <Card className="xl:sticky xl:top-[calc(4rem+var(--cover-bar))] xl:self-start">
           <Card.Header>
             <Card.Title className="text-base">Preview</Card.Title>
             <Card.Description>
@@ -371,7 +373,7 @@ function PromptHeaderPage() {
             </Card.Description>
           </Card.Header>
           <Card.Content>
-            <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap rounded-md bg-surface-secondary p-3 font-mono text-xs">
+            <pre className="max-h-[calc(100vh-12rem-var(--cover-bar))] min-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-surface-secondary p-3 font-mono text-xs">
               {render_prompt_header(header)}
             </pre>
           </Card.Content>

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import CoverNav from "../components/CoverNav";
+import CoverHeader from "../components/CoverHeader";
 import instance, { error_message } from "../lib/api";
 import {
   empty_reference,
@@ -29,6 +29,9 @@ import {
   replace_at,
 } from "../lib/cover";
 import type { Reference, References } from "../types/cover";
+
+/** The column the bar and the list share, so the two line up. */
+const CONTENT_WIDTH = "mx-auto w-full max-w-4xl";
 
 const EMPTY: References = { references: [] };
 
@@ -127,107 +130,109 @@ function ReferencesPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">References</h1>
-          {is_dirty && (
+    <div className="flex flex-col gap-4 pb-4">
+      <CoverHeader
+        title="References"
+        width={CONTENT_WIDTH}
+        badge={
+          is_dirty && (
             <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
               Unsaved changes
             </span>
-          )}
+          )
+        }
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              isPending={is_previewing}
+              onClick={show_preview}
+            >
+              <Eye className="size-4" />
+              Preview
+            </Button>
+            <Button
+              variant="ghost"
+              isDisabled={!is_dirty}
+              onClick={() => set_document(saved)}
+            >
+              <RotateCcw className="size-4" />
+              Revert
+            </Button>
+            <Button isPending={is_saving} isDisabled={!is_dirty} onClick={save}>
+              {({ isPending }) => (
+                <>
+                  {isPending ? (
+                    <Spinner color="current" size="sm" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  Save
+                </>
+              )}
+            </Button>
+          </>
+        }
+      />
+
+      <div className={`flex flex-col gap-4 ${CONTENT_WIDTH}`}>
+        <p className="text-sm text-muted">
+          Paragraphs you have already written, handed to the model as material it
+          may reuse. {enabled_count} of {references.length}{" "}
+          {references.length === 1 ? "entry is" : "entries are"} in the prompt;
+          switching one off keeps it here but leaves it out.
+        </p>
+
+        {references.length === 0 && (
+          <Card>
+            <Card.Content className="py-8 text-center text-sm text-muted">
+              No references yet. Add one to give the model something of your own
+              to work from.
+            </Card.Content>
+          </Card>
+        )}
+
+        <div className="flex flex-col gap-2">
+          {references.map((reference, index) => (
+            <ReferenceCard
+              key={reference.id}
+              reference={reference}
+              index={index}
+              total={references.length}
+              onChange={(changes) => update(index, changes)}
+              onMove={(offset) =>
+                set_references(move_by(references, index, offset))
+              }
+              onRemove={() => set_references(remove_at(references, index))}
+            />
+          ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            isPending={is_previewing}
-            onClick={show_preview}
-          >
-            <Eye className="size-4" />
-            Preview
-          </Button>
-          <Button
-            variant="ghost"
-            isDisabled={!is_dirty}
-            onClick={() => set_document(saved)}
-          >
-            <RotateCcw className="size-4" />
-            Revert
-          </Button>
-          <Button isPending={is_saving} isDisabled={!is_dirty} onClick={save}>
-            {({ isPending }) => (
-              <>
-                {isPending ? (
-                  <Spinner color="current" size="sm" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                Save
-              </>
-            )}
-          </Button>
-        </div>
+        <Button
+          variant="secondary"
+          className="self-start"
+          onClick={() => set_references([...references, empty_reference()])}
+        >
+          <Plus className="size-4" />
+          Add reference
+        </Button>
+
+        {preview && (
+          <Card>
+            <Card.Header>
+              <Card.Title className="text-base">In the prompt</Card.Title>
+              <Card.Description>
+                How the enabled references reach the model.
+              </Card.Description>
+            </Card.Header>
+            <Card.Content>
+              <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-surface-secondary p-3 font-mono text-xs">
+                {preview || "Nothing enabled."}
+              </pre>
+            </Card.Content>
+          </Card>
+        )}
       </div>
-
-      <CoverNav />
-
-      <p className="text-sm text-muted">
-        Paragraphs you have already written, handed to the model as material it
-        may reuse. {enabled_count} of {references.length}{" "}
-        {references.length === 1 ? "entry is" : "entries are"} in the prompt;
-        switching one off keeps it here but leaves it out.
-      </p>
-
-      {references.length === 0 && (
-        <Card>
-          <Card.Content className="py-8 text-center text-sm text-muted">
-            No references yet. Add one to give the model something of your own
-            to work from.
-          </Card.Content>
-        </Card>
-      )}
-
-      <div className="flex flex-col gap-2">
-        {references.map((reference, index) => (
-          <ReferenceCard
-            key={reference.id}
-            reference={reference}
-            index={index}
-            total={references.length}
-            onChange={(changes) => update(index, changes)}
-            onMove={(offset) =>
-              set_references(move_by(references, index, offset))
-            }
-            onRemove={() => set_references(remove_at(references, index))}
-          />
-        ))}
-      </div>
-
-      <Button
-        variant="secondary"
-        className="self-start"
-        onClick={() => set_references([...references, empty_reference()])}
-      >
-        <Plus className="size-4" />
-        Add reference
-      </Button>
-
-      {preview && (
-        <Card>
-          <Card.Header>
-            <Card.Title className="text-base">In the prompt</Card.Title>
-            <Card.Description>
-              How the enabled references reach the model.
-            </Card.Description>
-          </Card.Header>
-          <Card.Content>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-surface-secondary p-3 font-mono text-xs">
-              {preview || "Nothing enabled."}
-            </pre>
-          </Card.Content>
-        </Card>
-      )}
     </div>
   );
 }
