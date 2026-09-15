@@ -172,7 +172,7 @@ function Cover() {
                   ) : (
                     <Wand2 className="size-4" />
                   )}
-                  Generate prompt
+                  Next
                 </>
               )}
             </Button>

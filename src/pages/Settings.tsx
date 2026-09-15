@@ -1,4 +1,4 @@
-import { Button, Card, Input, Label, Spinner, toast } from "@heroui/react";
+import { Button, Card, InputGroup, Label, Spinner, toast } from "@heroui/react";
 import {
   Check,
   ChevronRight,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { CopyButton } from "../components/ui/CopyButton";
 import instance, { error_message } from "../lib/api";
 
 interface Settings {
@@ -146,20 +147,24 @@ function SettingsPage() {
           <Card.Content className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <Label className="text-xs font-medium text-muted">Folder</Label>
-              <Input
-                type="text"
-                aria-label={label}
-                value={settings[key]}
-                placeholder={defaults[key]}
-                onChange={(event) =>
-                  set_settings((current) => ({
-                    ...current,
-                    [key]: event.target.value,
-                  }))
-                }
-                variant="secondary"
-                className="font-mono text-xs"
-              />
+              <InputGroup variant="secondary">
+                <InputGroup.Input
+                  type="text"
+                  aria-label={label}
+                  value={settings[key]}
+                  placeholder={defaults[key]}
+                  onChange={(event) =>
+                    set_settings((current) => ({
+                      ...current,
+                      [key]: event.target.value,
+                    }))
+                  }
+                  className="font-mono text-xs"
+                />
+                <InputGroup.Suffix>
+                  <CopyButton value={settings[key]} label={label} />
+                </InputGroup.Suffix>
+              </InputGroup>
             </div>
 
             <PathStatus path={settings[key]} />

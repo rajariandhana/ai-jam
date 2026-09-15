@@ -317,17 +317,6 @@ def generate_summary(summary):
     return latex_text((summary or "").strip())
 
 
-def generate_coursework(coursework):
-    if not coursework:
-        return ""
-
-    items = " · ".join(latex_text(item) for item in coursework)
-
-    return rf"""
-    \resumeItem{{\textbf{{Coursework:}} {items}}}
-"""
-
-
 def generate_education(education):
     education = enabled_items(education)
 
@@ -343,7 +332,10 @@ def generate_education(education):
         gpa = latex_text(edu.get("gpa"))
         date_range = latex_text(edu.get("date"))
 
-        coursework = generate_coursework(edu.get("coursework", []))
+        descriptions = "\n".join(
+            rf"    \resumeItem{{{latex_text(description)}}}"
+            for description in edu.get("description", [])
+        )
 
         output.append(
             rf"""
@@ -351,7 +343,7 @@ def generate_education(education):
     {{{university}}}{{{location}}}
     {{{degree} | GPA: {gpa}}}{{{date_range}}}
 \resumeItemListStart
-{coursework}
+{descriptions}
 \resumeItemListEnd
 """
         )

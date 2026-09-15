@@ -1,4 +1,4 @@
-import { Button, Card, Input, Spinner, Switch, toast } from "@heroui/react";
+import { Button, Card, InputGroup, Spinner, Switch, toast } from "@heroui/react";
 import {
   Briefcase,
   ChevronDown,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { CopyButton } from "../components/ui/CopyButton";
 import { Field, LongField } from "../components/ui/Field";
 import { ItemCard } from "../components/ui/ItemCard";
 import { StringList } from "../components/ui/StringList";
@@ -292,15 +293,21 @@ function ResumeEditor() {
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
-              <Input
-                type="text"
-                aria-label="PDF file name"
-                value={build_name}
-                placeholder={auto_build_name}
-                onChange={(event) => set_typed_name(event.target.value)}
+              <InputGroup
                 variant="secondary"
                 className="w-120 border-2 border-gray-400"
-              />
+              >
+                <InputGroup.Input
+                  type="text"
+                  aria-label="PDF file name"
+                  value={build_name}
+                  placeholder={auto_build_name}
+                  onChange={(event) => set_typed_name(event.target.value)}
+                />
+                <InputGroup.Suffix>
+                  <CopyButton value={build_name} label="PDF file name" />
+                </InputGroup.Suffix>
+              </InputGroup>
               <span className="font-mono text-xs text-muted">.pdf</span>
             </div>
 
@@ -747,7 +754,6 @@ function ProfileSection({ resume, update }: SectionProps) {
         label="GitHub"
         value={resume.profile.github}
         onChange={(value) => set_profile("github", value)}
-        className="sm:col-span-2"
       />
     </div>
   );
@@ -824,17 +830,17 @@ function EducationSection({ resume, update }: SectionProps) {
               onChange={(value) =>
                 set_items(replace_at(items, index, { ...item, date: value }))
               }
-              className="sm:col-span-2"
             />
           </div>
 
           <StringList
-            label="Coursework"
-            values={item.coursework}
-            placeholder="Data Structures"
-            add_label="Add course"
+            label="Bullet points"
+            values={item.description}
+            placeholder="**Coursework**: Data Structures, Operating Systems"
+            multiline
+            add_label="Add bullet"
             onChange={(values) =>
-              set_items(replace_at(items, index, { ...item, coursework: values }))
+              set_items(replace_at(items, index, { ...item, description: values }))
             }
           />
         </ItemCard>
@@ -897,7 +903,6 @@ function ProjectsSection({ resume, update }: SectionProps) {
               onChange={(value) =>
                 set_items(replace_at(items, index, { ...item, slug: value }))
               }
-              className="sm:col-span-2"
             />
           </div>
 

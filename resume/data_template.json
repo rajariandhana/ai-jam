@@ -1,20 +1,22 @@
 {
   "profile": {
     "name": "",
-		"website": "",
+    "website": "",
     "email": "",
-		"linkedin": "",
-		"github": ""
+    "linkedin": "",
+    "github": ""
   },
   "summary": "",
-	"education": [
+  "education": [
     {
       "university": "",
       "location": "",
       "degree": "",
-			"gpa": "",
+      "gpa": "",
       "date": "",
-      "coursework": []
+      "description": [
+        ""
+      ]
     }
   ],
   "experience": [
@@ -41,10 +43,25 @@
     }
   ],
   "sections": [
-    { "key": "summary", "enabled": true },
-    { "key": "education", "enabled": true },
-    { "key": "projects", "enabled": true },
-    { "key": "experience", "enabled": true },
-    { "key": "skills", "enabled": true }
+    {
+      "key": "summary",
+      "enabled": true
+    },
+    {
+      "key": "education",
+      "enabled": true
+    },
+    {
+      "key": "projects",
+      "enabled": true
+    },
+    {
+      "key": "experience",
+      "enabled": true
+    },
+    {
+      "key": "skills",
+      "enabled": true
+    }
   ]
 }

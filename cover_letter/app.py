@@ -15,6 +15,7 @@ import settings as app_settings  # noqa: E402
 
 from generate import (  # noqa: E402
     cover_letter_build_path,
+    generate_body,
     generate_cover_letter,
     generate_pdf_from_texts,
     generate_prompt,
@@ -46,6 +47,10 @@ class JobRequest(BaseModel):
     position: Optional[str] = ""
     job_description: Optional[str] = ""
     request_note: Optional[str] = ""
+
+
+class BodyRequest(BaseModel):
+    prompt: Optional[str] = ""
 
 
 class TemplateRequest(BaseModel):
@@ -103,6 +108,18 @@ def generate_endpoint(job: JobRequest):
             company, position, job_description, request_note
         )
         return {"status": "ok", "pdf_path": str(pdf_path)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Plain `def` for the same reason as /generate: the Claude call blocks.
+@api_router.post("/generate-body")
+def generate_body_endpoint(job: BodyRequest):
+    prompt = (job.prompt or "").strip()
+
+    try:
+        prompt_response = generate_body(prompt)
+        return {"status": "ok", "prompt_response": prompt_response}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

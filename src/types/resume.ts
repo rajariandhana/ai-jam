@@ -17,7 +17,7 @@ export interface Education extends Includable {
   degree: string;
   gpa: string;
   date: string;
-  coursework: string[];
+  description: string[];
 }
 
 export interface Project extends Includable {

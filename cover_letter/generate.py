@@ -257,6 +257,32 @@ def generate_prompt(company: str, position: str, job_description: str, request_n
 {body}"""
 
 
+def generate_body(prompt: str) -> str:
+    """Runs a prompt the user may have edited on /cover/edit and hands the text
+    back instead of building a PDF, so it can be reviewed before saving."""
+    if not prompt.strip():
+        raise ValueError("Prompt is required")
+
+    _ensure_folders()
+
+    filename, prompt_filepath = _next_filename(PROMPTS_FOLDER_PATH)
+    with open(prompt_filepath, "w", encoding="utf-8") as f:
+        f.write(prompt)
+
+    # The instructions travel inside the prompt here, since it is the edited
+    # text from the page rather than prompt_header.md plus the data sections.
+    prompt_response = _ask_claude(
+        "Follow the instructions in the message and return only the text asked for.",
+        prompt,
+    )
+
+    response_path = os.path.join(PROMPTS_RESPONSE_FOLDER_PATH, filename)
+    with open(response_path, "w", encoding="utf-8") as f:
+        f.write(prompt_response)
+
+    return prompt_response
+
+
 def generate_cover_letter(company: str, position: str, job_description: str, request_note: str = "") -> str:
     if not company:
         raise ValueError("Company name is required")

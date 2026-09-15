@@ -1,5 +1,5 @@
 import { Button, Card, Label, Spinner, TextArea, toast } from "@heroui/react";
-import { ArrowLeft, Check, Copy, FileDown } from "lucide-react";
+import { ArrowLeft, Check, Copy, FileDown, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
@@ -27,6 +27,7 @@ function CoverEdit() {
   const [footer, set_footer] = useState("");
 
   const [is_saving, set_is_saving] = useState(false);
+  const [is_generating, set_is_generating] = useState(false);
   const [is_copied, set_is_copied] = useState(false);
 
   useEffect(() => {
@@ -50,6 +51,25 @@ function CoverEdit() {
     await navigator.clipboard.writeText(prompt);
     set_is_copied(true);
     setTimeout(() => set_is_copied(false), 1500);
+  }
+
+  async function generate_body() {
+    set_is_generating(true);
+
+    try {
+      // Claude can take a few minutes; match the backend's own timeout.
+      const response = await instance.post(
+        "/generate-body",
+        { prompt },
+        { timeout: 300 * 1000 },
+      );
+      set_prompt_response(response.data.prompt_response);
+      toast.success("Letter written, review it before saving");
+    } catch (caught) {
+      toast.danger(error_message(caught, "Could not write the letter."));
+    } finally {
+      set_is_generating(false);
+    }
   }
 
   async function save_as_pdf() {
@@ -108,7 +128,8 @@ function CoverEdit() {
           <Card.Header>
             <Card.Title className="text-base">Prompt</Card.Title>
             <Card.Description>
-              Paste this into your model of choice, then bring the reply back.
+              Generate the letter with Claude, or copy this into another model
+              and bring the reply back.
             </Card.Description>
           </Card.Header>
           <Card.Content className="flex flex-col gap-4">
@@ -138,6 +159,24 @@ function CoverEdit() {
                 className="font-mono text-xs"
               />
             </div>
+
+            <Button
+              fullWidth
+              isPending={is_generating}
+              isDisabled={prompt.trim() === ""}
+              onClick={generate_body}
+            >
+              {({ isPending }) => (
+                <>
+                  {isPending ? (
+                    <Spinner color="current" size="sm" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  Generate
+                </>
+              )}
+            </Button>
           </Card.Content>
         </Card>
 
@@ -166,7 +205,7 @@ function CoverEdit() {
               </Label>
               <TextArea
                 value={prompt_response}
-                placeholder="Paste the generated letter here..."
+                placeholder="Generate the letter, or paste one here..."
                 onChange={(event) => set_prompt_response(event.target.value)}
                 rows={18}
                 aria-label="Model response"
