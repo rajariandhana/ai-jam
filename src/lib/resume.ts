@@ -63,7 +63,7 @@ export function empty_education(): Education {
     degree: "",
     gpa: "",
     date: "",
-    coursework: [],
+    description: [""],
   };
 }
 

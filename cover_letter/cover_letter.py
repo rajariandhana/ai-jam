@@ -1,5 +1,5 @@
 """Interactive CLI over generate.generate_cover_letter, which writes the body
-with Claude and builds the PDF."""
+with Claude, saves the letter as JSON and builds the PDF."""
 
 from pathlib import Path
 
@@ -21,5 +21,6 @@ with open(JOB_DESCRIPTION_PATH, "r", encoding="utf-8") as file:
     job_description = file.read()
 
 print("Prompting Claude...")
-pdf_filepath = generate_cover_letter(company, position, job_description)
-print(f"PDF finished: {pdf_filepath}")
+letter = generate_cover_letter(company, position, job_description)
+print(f"Letter saved: {letter['id']}")
+print(f"PDF finished: {letter['pdf_path']}")

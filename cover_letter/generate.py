@@ -1,5 +1,4 @@
 from fpdf import FPDF
-from datetime import datetime
 import json
 import os
 import shutil
@@ -9,6 +8,8 @@ import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 
+import documents
+
 CURRENT_DIR = Path(__file__).resolve().parent
 ENV_PATH = CURRENT_DIR.parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
@@ -17,13 +18,8 @@ load_dotenv(dotenv_path=ENV_PATH)
 # logged-in Claude subscription rather than an API key.
 CLAUDE_MODEL = "opus"
 CLAUDE_TIMEOUT = 300
-NAME = "Ralfazza Rajariandhana"
 
-PROMPT_HEADER_PATH = CURRENT_DIR / "prompt_header.md"
 RESUME_PATH = CURRENT_DIR / "../resume/resume.json"
-PARAGRAPH_REFERENCE_PATH = CURRENT_DIR / "paragraph_reference.md"
-HEADER_PATH = CURRENT_DIR / "header.md"
-FOOTER_PATH = CURRENT_DIR / "footer.md"
 
 # The output directory is a setting, so it is read per call rather than frozen
 # at import. `settings` lives at the repo root, one level up from here.
@@ -34,8 +30,7 @@ import settings as app_settings  # noqa: E402
 
 def cover_letter_build_path():
     return app_settings.cover_letter_dir()
-PROMPTS_FOLDER_PATH = CURRENT_DIR / "prompts"
-PROMPTS_RESPONSE_FOLDER_PATH = CURRENT_DIR / "response"
+
 
 POSITION_MAP = {
     "1": "Software Engineer",
@@ -52,58 +47,50 @@ def _read(path):
         return f.read()
 
 
-def _ensure_folders():
-    for folder in (
-        cover_letter_build_path(),
-        PROMPTS_FOLDER_PATH,
-        PROMPTS_RESPONSE_FOLDER_PATH,
-    ):
-        os.makedirs(folder, exist_ok=True)
-
-
-def _next_filename(folder, ext="md"):
-    date_str = datetime.now().strftime("%Y_%m_%d")
-    counter = 1
-    while True:
-        filename = f"{date_str}_{counter:02d}.{ext}"
-        filepath = os.path.join(folder, filename)
-        if not os.path.exists(filepath):
-            return filename, filepath
-        counter += 1
-
-
 def resolve_position(position: str) -> str:
     """Accepts either a menu number ('1'-'5') or a raw position title."""
     return POSITION_MAP.get(position, position) or "Software Engineer"
 
 
-def _apply_replacements(text: str, company: str, position: str) -> str:
-    date_str = datetime.now().strftime("%B %d, %Y")
-    replacements = {
-        "{NAME}": NAME,
-        "{DATE}": date_str,
-        "{COMPANY}": company,
-        "{POSITION}": position,
-    }
-    for old, new in replacements.items():
-        text = text.replace(old, new)
-    return text
-
-
 def generate_template(company: str, position: str) -> tuple[str, str]:
     """Returns (header, footer) with {NAME}/{DATE}/{COMPANY}/{POSITION} filled in."""
+    header, footer = template_blocks(company, position)
+
+    return documents.render_block(header), documents.render_block(footer)
+
+
+def template_blocks(company: str, position: str) -> tuple[list[str], list[str]]:
+    """The same header and footer, kept as the paragraphs a letter stores."""
     if not company:
         raise ValueError("Company name is required")
 
     position = resolve_position(position)
+    template = documents.load_template()
+    name = template["name"]
 
-    header = _apply_replacements(_read(HEADER_PATH), company, position)
-    footer = _apply_replacements(_read(FOOTER_PATH), company, position)
-    return header, footer
+    return (
+        documents.resolve_block(template["header"], name, company, position),
+        documents.resolve_block(template["footer"], name, company, position),
+    )
+
+
+def letter_filename(company: str, position: str) -> str:
+    """The PDF name the template asks for, without the extension."""
+    template = documents.load_template()
+
+    filename = documents.apply_placeholders(
+        template["filename"],
+        template["name"],
+        company,
+        resolve_position(position),
+    ).strip()
+
+    # A path separator in the name would write outside the build folder.
+    return filename.replace("/", "-").replace("\\", "-") or "Cover Letter"
 
 
 def _build_pdf(pdf_content: str, pdf_filename: str) -> str:
-    _ensure_folders()
+    folder = cover_letter_build_path()
 
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     margin_mm = 12.7  # 0.5 inches
@@ -113,12 +100,39 @@ def _build_pdf(pdf_content: str, pdf_filename: str) -> str:
     pdf.set_font("Helvetica", size=12)
     pdf.multi_cell(w=0, h=6, text=pdf_content, align="J")
 
-    pdf_filepath = os.path.join(cover_letter_build_path(), pdf_filename)
+    if not pdf_filename.lower().endswith(".pdf"):
+        pdf_filename = f"{pdf_filename}.pdf"
+
+    pdf_filepath = os.path.join(folder, pdf_filename)
     pdf.output(pdf_filepath)
     return pdf_filepath
 
 
-def generate_pdf_from_texts(header: str, prompt_response: str, footer: str, filename: str) -> str:
+def build_letter_pdf(letter: dict) -> str:
+    """Render a saved letter's header, body and footer into one PDF."""
+    letter = documents.normalise_letter(letter)
+
+    header = letter["header"]
+    body = letter["body"]
+    footer = letter["footer"]
+
+    if not header:
+        raise ValueError("Header is required")
+    if not body:
+        raise ValueError("Body is required")
+    if not footer:
+        raise ValueError("Footer is required")
+
+    filename = letter["filename"] or letter_filename(
+        letter["company"], letter["position"]
+    )
+
+    return _build_pdf("\n\n".join(header + body + footer), filename)
+
+
+def generate_pdf_from_texts(
+    header: str, prompt_response: str, footer: str, filename: str
+) -> str:
     """Builds the cover letter PDF from already-finalized header/body/footer text
     (no {PLACEHOLDER} replacement is performed here)."""
     if not header:
@@ -133,12 +147,8 @@ def generate_pdf_from_texts(header: str, prompt_response: str, footer: str, file
 {prompt_response}
 
 {footer}"""
-    pdf_filename = ""
-    if filename:
-      pdf_filename = filename
-    else:
-      pdf_filename, _ = _next_filename(cover_letter_build_path(), ext="pdf")
-    return _build_pdf(pdf_content, pdf_filename)
+
+    return _build_pdf(pdf_content, filename or "Cover Letter")
 
 
 def _find_claude():
@@ -202,90 +212,113 @@ def _ask_claude(system_prompt: str, prompt: str) -> str:
     return result
 
 
-def _prompt_body(job_description: str, request_note: str) -> str:
-    """Everything the model needs besides the instructions in prompt_header.md."""
-    resume = _read(RESUME_PATH)
-    paragraph_reference = _read(PARAGRAPH_REFERENCE_PATH)
-    header = _read(HEADER_PATH)
-    footer = _read(FOOTER_PATH)
+def _prompt_contents(company: str, position: str, job_description: str, request_note: str):
+    """What each numbered section of the prompt carries, keyed by section."""
+    header, footer = template_blocks(company, position)
 
-    return f"""1. My full resume in JSON
-```
-{resume}
-```
+    template_text = "\n\n".join(
+        [
+            "Header",
+            documents.render_block(header),
+            "Footer",
+            documents.render_block(footer),
+        ]
+    )
 
-2. Job description
-```
-{job_description}
-```
-
-3. Cover letter template
-Header
-```
-{header}
-```
-
-Footer
-```
-{footer}
-```
-
-4. Paragraphs to reference of
-```
-{paragraph_reference}
-```
-
-5. Request
-```
-{request_note}
-```"""
+    return {
+        "resume": _read(RESUME_PATH),
+        "job_description": job_description,
+        "template": template_text,
+        "references": documents.render_references(),
+        "request": request_note,
+    }
 
 
-def generate_prompt(company: str, position: str, job_description: str, request_note: str = "") -> str:
+def _prompt_parts(company: str, position: str, job_description: str, request_note: str):
+    """The instruction block and the content block, which are sent separately:
+    the instructions become Claude's system prompt and the contents the message."""
+    prompt_header = documents.load_prompt_header()
+    contents = _prompt_contents(company, position, job_description, request_note)
+
+    return (
+        documents.render_prompt_header(prompt_header),
+        documents.render_prompt_body(contents, prompt_header),
+    )
+
+
+def generate_prompt(
+    company: str, position: str, job_description: str, request_note: str = ""
+) -> str:
     if not company:
         raise ValueError("Company name is required")
     if not job_description:
         raise ValueError("Job description is required")
 
-    # Make sure every folder we'll need later actually exists.
-    _ensure_folders()
+    instructions, body = _prompt_parts(company, position, job_description, request_note)
 
-    prompt_header = _read(PROMPT_HEADER_PATH)
-    body = _prompt_body(job_description, request_note)
-    return f"""{prompt_header}
+    return f"""{instructions}
 
 {body}"""
 
 
-def generate_cover_letter(company: str, position: str, job_description: str, request_note: str = "") -> str:
+# The prompt carries its own instructions when it has been edited by hand, so
+# Claude is told only to follow them.
+EDITED_PROMPT_SYSTEM = (
+    "Follow the instructions in the message and return only the text asked for."
+)
+
+
+def generate_body(prompt: str) -> list[str]:
+    """Run a prompt the builder may have edited and hand the text back as the
+    paragraphs a letter stores, so it can be reviewed before any PDF is built.
+
+    The whole prompt is the message here, rather than the instruction block
+    plus the data sections, because the point is to send exactly what is on
+    the page. The letter JSON keeps both the prompt and the answer.
+    """
+    if not prompt.strip():
+        raise ValueError("Prompt is required")
+
+    return documents.split_paragraphs(_ask_claude(EDITED_PROMPT_SYSTEM, prompt))
+
+
+def write_body(
+    company: str, position: str, job_description: str, request_note: str = ""
+) -> list[str]:
+    """Ask Claude for the body text, built fresh from the job details."""
     if not company:
         raise ValueError("Company name is required")
     if not job_description:
         raise ValueError("Job description is required")
 
+    instructions, body = _prompt_parts(company, position, job_description, request_note)
+
+    return documents.split_paragraphs(_ask_claude(instructions, body))
+
+
+def generate_cover_letter(
+    company: str, position: str, job_description: str, request_note: str = ""
+) -> dict:
+    """Write the letter with Claude, save it as JSON and build its PDF."""
     position = resolve_position(position)
-    # generate_prompt() returns a plain string, not a dict — don't index it.
-    prompt = generate_prompt(company, position, job_description, request_note)
 
-    filename, prompt_filepath = _next_filename(PROMPTS_FOLDER_PATH)
-    with open(prompt_filepath, "w", encoding="utf-8") as f:
-        f.write(prompt)
+    body = write_body(company, position, job_description, request_note)
+    header, footer = template_blocks(company, position)
 
-    prompt_response = _ask_claude(
-        _read(PROMPT_HEADER_PATH),
-        _prompt_body(job_description, request_note),
+    letter = documents.save_letter(
+        {
+            "company": company,
+            "position": position,
+            "job_description": job_description,
+            "request_note": request_note,
+            "prompt": generate_prompt(company, position, job_description, request_note),
+            "header": header,
+            "body": body,
+            "footer": footer,
+            "filename": letter_filename(company, position),
+        }
     )
 
-    response_path = os.path.join(PROMPTS_RESPONSE_FOLDER_PATH, filename)
-    with open(response_path, "w", encoding="utf-8") as f:
-        f.write(prompt_response)
+    letter["pdf_path"] = str(build_letter_pdf(letter))
 
-    header, footer = generate_template(company, position)
-    pdf_content = f"""{header}
-
-{prompt_response}
-
-{footer}"""
-
-    pdf_filename = filename.replace(".md", ".pdf")
-    return _build_pdf(pdf_content, pdf_filename)
+    return documents.save_letter(letter)

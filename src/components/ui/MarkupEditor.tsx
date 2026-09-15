@@ -1,7 +1,8 @@
-import { Input, Label, TextArea } from "@heroui/react";
+import { InputGroup, Label, TextArea } from "@heroui/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { CopyButton } from "./CopyButton";
 import { MarkupToolbar } from "./MarkupToolbar";
 import { useMarkup } from "./use-markup";
 
@@ -43,7 +44,6 @@ export function MarkupEditor({
     onFocus: () => set_is_focused(true),
     onBlur: () => set_is_focused(false),
     "aria-label": aria_label,
-    variant: "secondary" as const,
   };
 
   return (
@@ -54,9 +54,16 @@ export function MarkupEditor({
       </div>
 
       {multiline ? (
-        <TextArea {...shared} rows={rows} />
+        <TextArea {...shared} variant="secondary" rows={rows} />
       ) : (
-        <Input {...shared} type="text" />
+        // A group rather than a bare input, so the copy button sits inside the
+        // field's right edge instead of stealing width from it.
+        <InputGroup variant="secondary">
+          <InputGroup.Input {...shared} type="text" />
+          <InputGroup.Suffix>
+            <CopyButton value={value} label={aria_label} />
+          </InputGroup.Suffix>
+        </InputGroup>
       )}
     </div>
   );

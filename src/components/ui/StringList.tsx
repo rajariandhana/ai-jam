@@ -1,7 +1,8 @@
-import { Button, Input, Label, TextArea } from "@heroui/react";
+import { Button, InputGroup, Label, TextArea } from "@heroui/react";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { CopyButton } from "./CopyButton";
 import { MarkupToolbar } from "./MarkupToolbar";
 import { useMarkup } from "./use-markup";
 
@@ -64,8 +65,6 @@ export function StringList({
           onFocus: () => set_focused(index),
           onBlur: () => set_focused(null),
           "aria-label": `${label} ${index + 1}`,
-          variant: "secondary" as const,
-          className: "flex-1",
         };
 
         return (
@@ -75,9 +74,19 @@ export function StringList({
             className="flex items-start gap-1.5"
           >
             {multiline ? (
-              <TextArea {...shared} rows={3} />
+              <TextArea
+                {...shared}
+                variant="secondary"
+                className="flex-1"
+                rows={3}
+              />
             ) : (
-              <Input {...shared} type="text" />
+              <InputGroup variant="secondary" className="flex-1">
+                <InputGroup.Input {...shared} type="text" />
+                <InputGroup.Suffix>
+                  <CopyButton value={value} label={`${label} ${index + 1}`} />
+                </InputGroup.Suffix>
+              </InputGroup>
             )}
 
             <button

@@ -12,8 +12,12 @@ import { Sparkles, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
+import CoverHeader from "../components/CoverHeader";
 import { Field } from "../components/ui/Field";
 import instance, { error_message } from "../lib/api";
+
+/** The column the bar and the form share, so the two line up. */
+const CONTENT_WIDTH = "mx-auto w-full max-w-3xl";
 
 const DEFAULT_POSITION = "Software Engineer";
 
@@ -50,24 +54,24 @@ function Cover() {
     request_note,
   });
 
-  async function generate_prompt() {
+  /** Save the job details as a letter and open it in the builder. */
+  async function start_letter() {
     if (!is_valid) return;
 
     set_is_prompting(true);
 
     try {
-      const response = await instance.post("/generate-prompt", payload());
+      const response = await instance.post("/cover/letters", payload());
 
-      navigate("/cover/edit", {
-        state: { ...payload(), prompt: response.data.prompt },
-      });
+      navigate(`/cover/builder/${response.data.letter.id}`);
     } catch (caught) {
-      toast.danger(error_message(caught, "Could not generate the prompt."));
+      toast.danger(error_message(caught, "Could not start the letter."));
     } finally {
       set_is_prompting(false);
     }
   }
 
+  /** Let Claude write the body straight away, then open what it wrote. */
   async function generate() {
     if (!is_valid) return;
 
@@ -75,12 +79,12 @@ function Cover() {
 
     try {
       // Claude can take a few minutes; match the backend's own timeout.
-      await instance.post("/generate", payload(), { timeout: 300 * 1000 });
+      const response = await instance.post("/generate", payload(), {
+        timeout: 300 * 1000,
+      });
+
       toast.success("Cover letter generated");
-      set_company("");
-      set_position(DEFAULT_POSITION);
-      set_description("");
-      set_request_note("");
+      navigate(`/cover/builder/${response.data.id}`);
     } catch (caught) {
       toast.danger(error_message(caught, "Could not generate the letter."));
     } finally {
@@ -89,115 +93,115 @@ function Cover() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 py-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Cover Letter</h1>
-        <p className="text-sm text-muted">
-          Describe the role, then either let Claude write it or copy the
-          prompt out and paste the reply back.
-        </p>
-      </div>
+    <div className="flex flex-col gap-4 pb-4">
+      <CoverHeader
+        title="Cover Letter"
+        subtitle="Describe the role, then either let Claude write it or build the prompt and paste a reply back in the builder."
+        width={CONTENT_WIDTH}
+      />
 
-      <Card>
-        <Card.Content className="flex flex-col gap-4 py-4">
-          <Field
-            label="Company"
-            value={company}
-            onChange={set_company}
-            placeholder="Facebook/Apple/Amazon/Netflix/Google/..."
-          />
-
-          <div className="flex flex-col gap-1">
-            <Label className="text-xs font-medium text-muted">Position</Label>
-            <RadioGroup
-              value={position}
-              onChange={set_position}
-              aria-label="Position"
-            >
-              {POSITION_OPTIONS.map((option) => (
-                <Radio key={option} value={option}>
-                  <Radio.Content>
-                    <Radio.Control>
-                      <Radio.Indicator />
-                    </Radio.Control>
-                    {option}
-                  </Radio.Content>
-                </Radio>
-              ))}
-            </RadioGroup>
-
-            {position === "Other" && (
-              <Field
-                label="Custom position"
-                value={other_position}
-                onChange={set_other_position}
-                placeholder="Enter your position"
-                className="mt-2"
-              />
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <Label className="text-xs font-medium text-muted">
-              Job description
-            </Label>
-            <TextArea
-              value={description}
-              placeholder="Paste the posting here..."
-              onChange={(event) => set_description(event.target.value)}
-              rows={10}
-              aria-label="Job description"
-              variant="secondary"
+      <div className={`flex flex-col gap-4 ${CONTENT_WIDTH}`}>
+        <Card>
+          <Card.Content className="flex flex-col gap-4 py-4">
+            <Field
+              label="Company"
+              value={company}
+              onChange={set_company}
+              placeholder="Facebook/Apple/Amazon/Netflix/Google/..."
             />
-          </div>
 
-          <Field
-            label="Prompt request note"
-            value={request_note}
-            onChange={set_request_note}
-            placeholder="Make it sarcastic..."
-          />
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium text-muted">Position</Label>
+              <RadioGroup
+                value={position}
+                onChange={set_position}
+                aria-label="Position"
+              >
+                {POSITION_OPTIONS.map((option) => (
+                  <Radio key={option} value={option}>
+                    <Radio.Content>
+                      <Radio.Control>
+                        <Radio.Indicator />
+                      </Radio.Control>
+                      {option}
+                    </Radio.Content>
+                  </Radio>
+                ))}
+              </RadioGroup>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              className="flex-1"
-              isPending={is_prompting}
-              isDisabled={!is_valid}
-              onClick={generate_prompt}
-            >
-              {({ isPending }) => (
-                <>
-                  {isPending ? (
-                    <Spinner color="current" size="sm" />
-                  ) : (
-                    <Wand2 className="size-4" />
-                  )}
-                  Generate prompt
-                </>
+              {position === "Other" && (
+                <Field
+                  label="Custom position"
+                  value={other_position}
+                  onChange={set_other_position}
+                  placeholder="Enter your position"
+                  className="mt-2"
+                />
               )}
-            </Button>
+            </div>
 
-            <Button
-              className="flex-1"
-              variant="secondary"
-              isPending={is_generating}
-              isDisabled={!is_valid}
-              onClick={generate}
-            >
-              {({ isPending }) => (
-                <>
-                  {isPending ? (
-                    <Spinner color="current" size="sm" />
-                  ) : (
-                    <Sparkles className="size-4" />
-                  )}
-                  Auto process
-                </>
-              )}
-            </Button>
-          </div>
-        </Card.Content>
-      </Card>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium text-muted">
+                Job description
+              </Label>
+              <TextArea
+                value={description}
+                placeholder="Paste the posting here..."
+                onChange={(event) => set_description(event.target.value)}
+                rows={10}
+                aria-label="Job description"
+                variant="secondary"
+              />
+            </div>
+
+            <Field
+              label="Prompt request note"
+              value={request_note}
+              onChange={set_request_note}
+              placeholder="Make it sarcastic..."
+            />
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                className="flex-1"
+                isPending={is_prompting}
+                isDisabled={!is_valid}
+                onClick={start_letter}
+              >
+                {({ isPending }) => (
+                  <>
+                    {isPending ? (
+                      <Spinner color="current" size="sm" />
+                    ) : (
+                      <Wand2 className="size-4" />
+                    )}
+                    Next
+                  </>
+                )}
+              </Button>
+
+              <Button
+                className="flex-1"
+                variant="secondary"
+                isPending={is_generating}
+                isDisabled={!is_valid}
+                onClick={generate}
+              >
+                {({ isPending }) => (
+                  <>
+                    {isPending ? (
+                      <Spinner color="current" size="sm" />
+                    ) : (
+                      <Sparkles className="size-4" />
+                    )}
+                    Auto process
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card.Content>
+        </Card>
+      </div>
     </div>
   );
 }

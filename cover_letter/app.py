@@ -13,12 +13,20 @@ import resume_builder  # noqa: E402  (also puts the repo root on sys.path)
 
 import settings as app_settings  # noqa: E402
 
+import documents  # noqa: E402
+
 from generate import (  # noqa: E402
+    build_letter_pdf,
     cover_letter_build_path,
+    generate_body,
     generate_cover_letter,
     generate_pdf_from_texts,
     generate_prompt,
     generate_template,
+    letter_filename,
+    resolve_position,
+    template_blocks,
+    write_body,
 )
 
 app = FastAPI()
@@ -46,6 +54,10 @@ class JobRequest(BaseModel):
     position: Optional[str] = ""
     job_description: Optional[str] = ""
     request_note: Optional[str] = ""
+
+
+class BodyRequest(BaseModel):
+    prompt: Optional[str] = ""
 
 
 class TemplateRequest(BaseModel):
@@ -99,10 +111,31 @@ def generate_endpoint(job: JobRequest):
     request_note = (job.request_note or "").strip()
 
     try:
-        pdf_path = generate_cover_letter(
+        letter = generate_cover_letter(
             company, position, job_description, request_note
         )
-        return {"status": "ok", "pdf_path": str(pdf_path)}
+        return {
+            "status": "ok",
+            "letter": letter,
+            "id": letter["id"],
+            "pdf_path": letter["pdf_path"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Plain `def` for the same reason as /generate: the Claude call blocks.
+@api_router.post("/generate-body")
+def generate_body_endpoint(job: BodyRequest):
+    prompt = (job.prompt or "").strip()
+
+    try:
+        body = generate_body(prompt)
+        return {
+            "status": "ok",
+            "prompt_response": documents.render_block(body),
+            "body": body,
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -129,6 +162,256 @@ async def generate_pdf_endpoint(job: PdfRequest):
     try:
         pdf_path = generate_pdf_from_texts(header, prompt_response, footer, filename)
         return {"status": "ok", "pdf_path": str(pdf_path)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ------------------------------------------------- cover letter documents
+#
+# The prompt header, the letter template and the reference paragraphs are JSON
+# documents the editors under /cover read and write. Letters are JSON too, so a
+# generated one can be reopened and changed instead of being rebuilt from
+# scratch.
+
+
+class DocumentRequest(BaseModel):
+    data: dict[str, Any]
+
+
+class LetterRequest(BaseModel):
+    # Every field defaults to None rather than "", so an edit that leaves one
+    # out keeps what is stored instead of blanking it.
+    company: Optional[str] = None
+    position: Optional[str] = None
+    job_description: Optional[str] = None
+    request_note: Optional[str] = None
+    prompt: Optional[str] = None
+    header: Optional[list[str]] = None
+    body: Optional[list[str]] = None
+    footer: Optional[list[str]] = None
+    filename: Optional[str] = None
+
+
+@api_router.get("/cover/prompt-header")
+async def get_prompt_header():
+    try:
+        return {"status": "ok", "data": documents.load_prompt_header()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.put("/cover/prompt-header")
+async def put_prompt_header(request: DocumentRequest):
+    try:
+        data = documents.save_prompt_header(request.data)
+        return {
+            "status": "ok",
+            "data": data,
+            "preview": documents.render_prompt_header(data),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.post("/cover/prompt-header/preview")
+async def preview_prompt_header(request: DocumentRequest):
+    """What the submitted, still unsaved header would send to the model."""
+    try:
+        return {
+            "status": "ok",
+            "preview": documents.render_prompt_header(request.data),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.get("/cover/template")
+async def get_template():
+    try:
+        return {"status": "ok", "data": documents.load_template()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.put("/cover/template")
+async def put_template(request: DocumentRequest):
+    try:
+        return {"status": "ok", "data": documents.save_template(request.data)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.get("/cover/references")
+async def get_references():
+    try:
+        return {"status": "ok", "data": documents.load_references()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.put("/cover/references")
+async def put_references(request: DocumentRequest):
+    try:
+        data = documents.save_references(request.data)
+        return {
+            "status": "ok",
+            "data": data,
+            "preview": documents.render_references(data),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.post("/cover/references/preview")
+async def preview_references(request: DocumentRequest):
+    try:
+        return {
+            "status": "ok",
+            "preview": documents.render_references(request.data),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ----------------------------------------------------------- saved letters
+
+
+def _letter_or_404(letter_id: str):
+    try:
+        return documents.load_letter(letter_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+def _letter_changes(request: LetterRequest) -> dict[str, Any]:
+    """Only the fields the caller actually sent, so a partial edit is safe."""
+    return request.model_dump(exclude_none=True)
+
+
+@api_router.get("/cover/letters")
+async def list_letters():
+    try:
+        return {"status": "ok", "letters": documents.list_letters()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/cover/letters")
+async def create_letter(request: LetterRequest):
+    """Start a letter: the template fills the header and footer, and the prompt
+    is built from the current prompt header and references."""
+    company = (request.company or "").strip()
+    position = resolve_position((request.position or "").strip())
+    job_description = request.job_description or ""
+    request_note = request.request_note or ""
+
+    try:
+        header, footer = template_blocks(company, position)
+
+        letter = documents.save_letter(
+            {
+                **_letter_changes(request),
+                "company": company,
+                "position": position,
+                "job_description": job_description,
+                "request_note": request_note,
+                "prompt": request.prompt
+                if request.prompt is not None
+                else generate_prompt(company, position, job_description, request_note),
+                "header": request.header if request.header is not None else header,
+                "body": request.body or [],
+                "footer": request.footer if request.footer is not None else footer,
+                "filename": request.filename or letter_filename(company, position),
+            }
+        )
+
+        return {"status": "ok", "letter": letter}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.get("/cover/letters/{letter_id}")
+async def get_letter(letter_id: str):
+    return {"status": "ok", "letter": _letter_or_404(letter_id)}
+
+
+@api_router.put("/cover/letters/{letter_id}")
+async def put_letter(letter_id: str, request: LetterRequest):
+    letter = _letter_or_404(letter_id)
+
+    try:
+        saved = documents.save_letter({**letter, **_letter_changes(request)})
+        return {"status": "ok", "letter": saved}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.delete("/cover/letters/{letter_id}")
+async def remove_letter(letter_id: str):
+    _letter_or_404(letter_id)
+
+    try:
+        documents.delete_letter(letter_id)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.post("/cover/letters/{letter_id}/prompt")
+async def rebuild_letter_prompt(letter_id: str):
+    """Rebuild the stored prompt from the letter and the current documents."""
+    letter = _letter_or_404(letter_id)
+
+    try:
+        letter["prompt"] = generate_prompt(
+            letter["company"],
+            letter["position"],
+            letter["job_description"],
+            letter["request_note"],
+        )
+        return {"status": "ok", "letter": documents.save_letter(letter)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# Plain `def` so the Claude subprocess runs in the threadpool and parallel
+# generations don't block the API.
+@api_router.post("/cover/letters/{letter_id}/generate")
+def generate_letter_body(letter_id: str):
+    letter = _letter_or_404(letter_id)
+
+    try:
+        # The prompt on the page is the one that runs, edits and all. Only a
+        # letter with no prompt at all falls back to building one.
+        letter["body"] = (
+            generate_body(letter["prompt"])
+            if letter["prompt"].strip()
+            else write_body(
+                letter["company"],
+                letter["position"],
+                letter["job_description"],
+                letter["request_note"],
+            )
+        )
+        return {"status": "ok", "letter": documents.save_letter(letter)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@api_router.post("/cover/letters/{letter_id}/pdf")
+async def build_letter(letter_id: str):
+    letter = _letter_or_404(letter_id)
+
+    try:
+        letter["pdf_path"] = str(build_letter_pdf(letter))
+        saved = documents.save_letter(letter)
+        return {
+            "status": "ok",
+            "letter": saved,
+            "name": Path(saved["pdf_path"]).name,
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

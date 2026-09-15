@@ -31,6 +31,9 @@ cover_letter/prompts
 cover_letter/response
 cover_letter/job_description.md
 cover_letter/paragraph_reference.md
+# Personal writing and the letters written from it.
+cover_letter/references.json
+cover_letter/letters
 
 resume/resume_builds
 resume/preset.json

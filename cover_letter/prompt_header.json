@@ -1,0 +1,46 @@
+{
+  "role": "You are an AI tool to help me to write cover letter.",
+  "about": "I am a Computer Science fresh graduate.",
+  "inputs_intro": "Below I provide:",
+  "inputs": [
+    {
+      "key": "resume",
+      "label": "My full resume in JSON",
+      "description": "Contains my profile, education, projects, experience, and skills.",
+      "enabled": true
+    },
+    {
+      "key": "job_description",
+      "label": "Job description",
+      "description": "Copied from the job posting board",
+      "enabled": true
+    },
+    {
+      "key": "template",
+      "label": "Cover letter template",
+      "description": "There is a header and footer with no body text.",
+      "enabled": true
+    },
+    {
+      "key": "references",
+      "label": "Several paragraphs I've written that could be used/referenced for.",
+      "description": "",
+      "enabled": true
+    },
+    {
+      "key": "request",
+      "label": "Request",
+      "description": "Optional prompt that if given must be followed.",
+      "enabled": true
+    }
+  ],
+  "instructions": [
+    "I want you to write me the body text for a cover letter according to my resume tailored with the job description.",
+    "The body text could consist of 2-4 paragraphs.",
+    "Only return me the body text and nothing else.",
+    "Avoid using em dash, colons, and other common AI writing styles.",
+    "Mention why I am interested in the role.",
+    "Mention how my experiences and learning capabilities could contribute.",
+    "You must mention my visa eligibility."
+  ]
+}
