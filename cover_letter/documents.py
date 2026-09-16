@@ -374,11 +374,6 @@ def normalise_references(data):
                 "id": reference_id,
                 "title": _text(entry.get("title")),
                 "content": content,
-                "tags": [
-                    tag.strip()
-                    for tag in entry.get("tags") or []
-                    if isinstance(tag, str) and tag.strip()
-                ],
                 "enabled": entry.get("enabled", True) is not False,
             }
         )
@@ -419,7 +414,6 @@ def _migrate_references():
                 "id": _reference_id(index),
                 "title": title or f"Reference {index}",
                 "content": block,
-                "tags": [],
                 "enabled": True,
             }
         )
@@ -455,8 +449,6 @@ def render_references(data=None):
 
         if entry["title"]:
             lines.append(entry["title"])
-        if entry["tags"]:
-            lines.append(f"({', '.join(entry['tags'])})")
 
         lines.append(entry["content"])
         blocks.append("\n".join(lines))

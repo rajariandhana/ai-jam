@@ -33,7 +33,6 @@ export interface Reference {
   id: string;
   title: string;
   content: string;
-  tags: string[];
   enabled: boolean;
 }
 

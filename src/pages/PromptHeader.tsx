@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import CoverHeader from "../components/CoverHeader";
+import CoverNav from "../components/CoverNav";
 import instance, { error_message } from "../lib/api";
 import {
   EMPTY_PROMPT_HEADER,
@@ -90,35 +90,39 @@ function PromptHeaderPage() {
 
   if (is_loading) {
     return (
-      <div className="flex h-64 items-center justify-center gap-2 text-muted">
-        <Spinner size="sm" />
-        Loading prompt_header.json...
+      <div className="flex flex-col gap-4 pb-4">
+        <CoverNav />
+        <div className="flex h-64 items-center justify-center gap-2 text-muted">
+          <Spinner size="sm" />
+          Loading prompt_header.json...
+        </div>
       </div>
     );
   }
 
   if (load_error) {
     return (
-      <Card className="mx-auto mt-12 max-w-lg">
-        <Card.Header>
-          <Card.Title>Could not load the prompt header</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <p className="text-sm text-muted">{load_error}</p>
-        </Card.Content>
-      </Card>
+      <div className="flex flex-col gap-4 pb-4">
+        <CoverNav />
+        <Card className="mx-auto mt-12 max-w-lg">
+          <Card.Header>
+            <Card.Title>Could not load the prompt header</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <p className="text-sm text-muted">{load_error}</p>
+          </Card.Content>
+        </Card>
+      </div>
     );
   }
 
   const missing = missing_inputs(header.inputs);
 
   return (
-    // --cover-bar is the sticky bar's height: py-3 plus a 36px title row, a
-    // 12px gap and a 32px nav row, matching the one on /resume. The preview
-    // uses it so it never slides under the bar.
-    <div className="flex flex-col gap-4 pb-4 [--cover-bar:6.75rem]">
-      <CoverHeader
-        title="Prompt header"
+    // --cover-bar is the sticky nav's height (see CoverNav). The preview uses
+    // it so it never slides under the bar.
+    <div className="flex flex-col gap-4 pb-4 [--cover-bar:3.5rem]">
+      <CoverNav
         badge={
           is_dirty && (
             <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
