@@ -1,6 +1,8 @@
 import { FileText, LayoutDashboard, PenLine, Settings } from "lucide-react";
 import { NavLink, Outlet } from "react-router";
 
+import Logo from "./Logo";
+
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/resume", label: "Resume", icon: FileText },
@@ -13,8 +15,8 @@ function Layout() {
     <div className="min-h-screen bg-background-secondary">
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-4">
-          <NavLink to="/" className="text-sm font-bold tracking-tight">
-            AI JAM
+          <NavLink to="/" aria-label="Dashboard">
+            <Logo className="size-8" />
           </NavLink>
 
           <nav className="flex items-center gap-1">

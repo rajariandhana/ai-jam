@@ -62,7 +62,6 @@ export function empty_reference(): Reference {
     id: `ref_${Date.now().toString(36)}`,
     title: "",
     content: "",
-    tags: [],
     enabled: true,
   };
 }

@@ -21,11 +21,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
 
-import CoverHeader from "../components/CoverHeader";
+import CoverNav from "../components/CoverNav";
 import { CopyButton } from "../components/ui/CopyButton";
 import instance, { error_message } from "../lib/api";
+import { useCoverTabs } from "../lib/cover_tabs";
 import {
   EMPTY_LETTER,
   EMPTY_TEMPLATE,
@@ -40,11 +40,11 @@ import type { CoverTemplate, Letter, LetterSummary } from "../types/cover";
 /** Claude can take a few minutes; match the backend's own timeout. */
 const GENERATE_TIMEOUT = 300 * 1000;
 
-/** The column the list view's bar and rows share, so the two line up. */
-const LIST_WIDTH = "mx-auto w-full max-w-4xl";
+/** The list view's column, kept to a readable width at the left edge. */
+const LIST_WIDTH = "w-full max-w-4xl";
 
 function CoverBuilder() {
-  const { letter_id } = useParams();
+  const { letter_id } = useCoverTabs();
 
   return letter_id ? (
     <LetterEditor key={letter_id} letter_id={letter_id} />
@@ -60,7 +60,7 @@ function LetterList() {
   const [is_loading, set_is_loading] = useState(true);
   const [load_error, set_load_error] = useState("");
 
-  const navigate = useNavigate();
+  const { set_tab, open_letter } = useCoverTabs();
 
   useEffect(() => {
     instance
@@ -84,11 +84,9 @@ function LetterList() {
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <CoverHeader
-        title="Builder"
-        width={LIST_WIDTH}
+      <CoverNav
         actions={
-          <Button onClick={() => navigate("/cover")}>
+          <Button onClick={() => set_tab("new")}>
             <FilePlus2 className="size-4" />
             New letter
           </Button>
@@ -136,7 +134,7 @@ function LetterList() {
               <button
                 type="button"
                 className="flex flex-1 flex-col items-start overflow-hidden text-left"
-                onClick={() => navigate(`/cover/builder/${letter.id}`)}
+                onClick={() => open_letter(letter.id)}
               >
                 <span className="truncate text-sm font-medium">
                   {letter_title(letter)}
@@ -333,7 +331,7 @@ function LetterEditor({ letter_id }: { letter_id: string }) {
   const [is_building, set_is_building] = useState(false);
   const [is_rebuilding_prompt, set_is_rebuilding_prompt] = useState(false);
 
-  const navigate = useNavigate();
+  const { open_letter } = useCoverTabs();
 
   const is_dirty = JSON.stringify(letter) !== JSON.stringify(saved);
 
@@ -437,44 +435,46 @@ function LetterEditor({ letter_id }: { letter_id: string }) {
 
   if (is_loading) {
     return (
-      <div className="flex h-64 items-center justify-center gap-2 text-muted">
-        <Spinner size="sm" />
-        Loading the letter...
+      <div className="flex flex-col gap-4 pb-4">
+        <CoverNav />
+        <div className="flex h-64 items-center justify-center gap-2 text-muted">
+          <Spinner size="sm" />
+          Loading the letter...
+        </div>
       </div>
     );
   }
 
   if (load_error) {
     return (
-      <Card className="mx-auto mt-12 max-w-lg">
-        <Card.Header>
-          <Card.Title>Could not load the letter</Card.Title>
-          <Card.Description>{load_error}</Card.Description>
-        </Card.Header>
-        <Card.Content>
-          <Button fullWidth onClick={() => navigate("/cover/builder")}>
-            <ArrowLeft className="size-4" />
-            Back to the letters
-          </Button>
-        </Card.Content>
-      </Card>
+      <div className="flex flex-col gap-4 pb-4">
+        <CoverNav />
+        <Card className="mx-auto mt-12 max-w-lg">
+          <Card.Header>
+            <Card.Title>Could not load the letter</Card.Title>
+            <Card.Description>{load_error}</Card.Description>
+          </Card.Header>
+          <Card.Content>
+            <Button fullWidth onClick={() => open_letter(null)}>
+              <ArrowLeft className="size-4" />
+              Back to the letters
+            </Button>
+          </Card.Content>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <CoverHeader
-        title={letter_title(letter)}
-        subtitle={[letter.position, format_time(letter.updated_at)]
-          .filter(Boolean)
-          .join(" · ")}
+      <CoverNav
         leading={
           <Button
             variant="ghost"
             size="sm"
             isIconOnly
             aria-label="Back to the letters"
-            onClick={() => navigate("/cover/builder")}
+            onClick={() => open_letter(null)}
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -668,6 +668,7 @@ function LetterEditor({ letter_id }: { letter_id: string }) {
               onChange={(body) => update({ body })}
               placeholder="Paste or write a paragraph..."
               rows={6}
+              gap="gap-3"
               empty_hint="Nothing written yet. Use Write with Claude, or add a paragraph and type it yourself."
             />
 
@@ -700,6 +701,8 @@ interface ParagraphListProps {
   placeholder?: string;
   rows?: number;
   empty_hint?: string;
+  /** Space between the paragraphs, for blocks that hold several. */
+  gap?: string;
 }
 
 /** An editable list of paragraphs, which is how the JSON stores a block. */
@@ -710,6 +713,7 @@ function ParagraphList({
   placeholder,
   rows = 4,
   empty_hint = "Nothing here yet.",
+  gap = "gap-1",
 }: ParagraphListProps) {
   return (
     <div className="flex flex-col gap-1">
@@ -724,50 +728,55 @@ function ParagraphList({
         <p className="text-xs italic text-muted">{empty_hint}</p>
       )}
 
-      {values.map((value, index) => (
-        <div key={index} className="flex items-start gap-1.5">
-          <TextArea
-            value={value}
-            rows={rows}
-            placeholder={placeholder}
-            aria-label={`${label} paragraph ${index + 1}`}
-            onChange={(event) =>
-              onChange(replace_at(values, index, event.target.value))
-            }
-            variant="secondary"
-            className="flex-1"
-          />
+      <div className={`flex flex-col ${gap}`}>
+        {values.map((value, index) => (
+          <div key={index} className="flex items-start gap-1.5">
+            <TextArea
+              value={value}
+              rows={rows}
+              placeholder={placeholder}
+              aria-label={`${label} paragraph ${index + 1}`}
+              onChange={(event) =>
+                onChange(replace_at(values, index, event.target.value))
+              }
+              variant="secondary"
+              // Grows and shrinks with the text, so a paragraph never scrolls
+              // inside its box. `rows` only applies where field-sizing is not
+              // supported (Firefox).
+              className="flex-1 field-sizing-content resize-none"
+            />
 
-          <div className="flex flex-col">
-            <button
-              type="button"
-              aria-label={`Move ${label} paragraph ${index + 1} up`}
-              disabled={index === 0}
-              onClick={() => onChange(move_by(values, index, -1))}
-              className="rounded p-1 text-muted transition-colors hover:bg-surface-secondary disabled:opacity-30"
-            >
-              <ChevronUp className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={`Move ${label} paragraph ${index + 1} down`}
-              disabled={index === values.length - 1}
-              onClick={() => onChange(move_by(values, index, 1))}
-              className="rounded p-1 text-muted transition-colors hover:bg-surface-secondary disabled:opacity-30"
-            >
-              <ChevronDown className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={`Remove ${label} paragraph ${index + 1}`}
-              onClick={() => onChange(remove_at(values, index))}
-              className="rounded p-1 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
-            >
-              <Trash2 className="size-4" />
-            </button>
+            <div className="flex flex-col">
+              <button
+                type="button"
+                aria-label={`Move ${label} paragraph ${index + 1} up`}
+                disabled={index === 0}
+                onClick={() => onChange(move_by(values, index, -1))}
+                className="rounded p-1 text-muted transition-colors hover:bg-surface-secondary disabled:opacity-30"
+              >
+                <ChevronUp className="size-4" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${label} paragraph ${index + 1} down`}
+                disabled={index === values.length - 1}
+                onClick={() => onChange(move_by(values, index, 1))}
+                className="rounded p-1 text-muted transition-colors hover:bg-surface-secondary disabled:opacity-30"
+              >
+                <ChevronDown className="size-4" />
+              </button>
+              <button
+                type="button"
+                aria-label={`Remove ${label} paragraph ${index + 1}`}
+                onClick={() => onChange(remove_at(values, index))}
+                className="rounded p-1 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
       <Button
         variant="ghost"

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import CoverHeader from "../components/CoverHeader";
+import CoverNav from "../components/CoverNav";
 import instance, { error_message } from "../lib/api";
 import {
   empty_reference,
@@ -30,8 +30,8 @@ import {
 } from "../lib/cover";
 import type { Reference, References } from "../types/cover";
 
-/** The column the bar and the list share, so the two line up. */
-const CONTENT_WIDTH = "mx-auto w-full max-w-4xl";
+/** The list's column, kept to a readable width at the left edge. */
+const CONTENT_WIDTH = "w-full max-w-4xl";
 
 const EMPTY: References = { references: [] };
 
@@ -109,31 +109,35 @@ function ReferencesPage() {
 
   if (is_loading) {
     return (
-      <div className="flex h-64 items-center justify-center gap-2 text-muted">
-        <Spinner size="sm" />
-        Loading references.json...
+      <div className="flex flex-col gap-4 pb-4">
+        <CoverNav />
+        <div className="flex h-64 items-center justify-center gap-2 text-muted">
+          <Spinner size="sm" />
+          Loading references.json...
+        </div>
       </div>
     );
   }
 
   if (load_error) {
     return (
-      <Card className="mx-auto mt-12 max-w-lg">
-        <Card.Header>
-          <Card.Title>Could not load the references</Card.Title>
-        </Card.Header>
-        <Card.Content>
-          <p className="text-sm text-muted">{load_error}</p>
-        </Card.Content>
-      </Card>
+      <div className="flex flex-col gap-4 pb-4">
+        <CoverNav />
+        <Card className="mx-auto mt-12 max-w-lg">
+          <Card.Header>
+            <Card.Title>Could not load the references</Card.Title>
+          </Card.Header>
+          <Card.Content>
+            <p className="text-sm text-muted">{load_error}</p>
+          </Card.Content>
+        </Card>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <CoverHeader
-        title="References"
-        width={CONTENT_WIDTH}
+      <CoverNav
         badge={
           is_dirty && (
             <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-soft-foreground">
@@ -280,10 +284,12 @@ function ReferenceCard({
           >
             {reference.title || "Untitled reference"}
           </span>
-          <span className="shrink-0 text-xs text-muted">
-            {words === 0 ? "empty" : `${words} words`}
-          </span>
         </button>
+
+        {/* Fixed width, so the counts line up down the list. */}
+        <span className="w-16 shrink-0 text-right text-xs text-muted">
+          {words === 0 ? "empty" : `${words} words`}
+        </span>
 
         <Switch
           isSelected={reference.enabled}
@@ -331,37 +337,16 @@ function ReferenceCard({
 
       {is_open && (
         <div className="flex flex-col gap-3 border-t border-border p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs font-medium text-muted">Title</Label>
-              <Input
-                type="text"
-                value={reference.title}
-                placeholder="Why this kind of work"
-                aria-label="Reference title"
-                onChange={(event) => onChange({ title: event.target.value })}
-                variant="secondary"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs font-medium text-muted">Tags</Label>
-              <Input
-                type="text"
-                value={reference.tags.join(", ")}
-                placeholder="visa, games, teamwork"
-                aria-label="Reference tags"
-                onChange={(event) =>
-                  onChange({
-                    tags: event.target.value
-                      .split(",")
-                      .map((tag) => tag.trim())
-                      .filter(Boolean),
-                  })
-                }
-                variant="secondary"
-              />
-            </div>
+          <div className="flex flex-col gap-1">
+            <Label className="text-xs font-medium text-muted">Title</Label>
+            <Input
+              type="text"
+              value={reference.title}
+              placeholder="Why this kind of work"
+              aria-label="Reference title"
+              onChange={(event) => onChange({ title: event.target.value })}
+              variant="secondary"
+            />
           </div>
 
           <div className="flex flex-col gap-1">
